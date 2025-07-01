@@ -1137,7 +1137,6 @@ impl<F: ArkPrimeField> RunningMem<F> {
             &cee_pack_l,
             &cee_pack_r,
             max(self.time_bit_limit, self.sr_bit_limit),
-            w.cs.clone(),
         )?;
 
         w.rw_ops.push(ops.0);
@@ -1181,7 +1180,6 @@ impl<F: ArkPrimeField> RunningMem<F> {
             &cee_pack_l,
             &cee_pack_r,
             max(self.time_bit_limit, self.sr_bit_limit),
-            w.cs.clone(),
         )?;
 
         let res = ops.1.clone();
@@ -1444,13 +1442,10 @@ impl<F: ArkPrimeField> RunningMem<F> {
         w.last_check = Some(last_check);
 
         // packed
-        chunk_ee_zero(&eez_pack, self.time_bit_limit, w.cs.clone())?;
-        chunk_ee(
-            &ee_addr_pack_l,
-            &ee_addr_pack_r,
-            self.addr_bit_limit,
-            w.cs.clone(),
-        )?;
+        chunk_ee_zero(&eez_pack, self.time_bit_limit)?;
+
+        println!("IN SCAN");
+        chunk_ee(&ee_addr_pack_l, &ee_addr_pack_r, self.addr_bit_limit)?;
 
         Ok(())
     }

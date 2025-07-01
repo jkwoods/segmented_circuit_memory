@@ -1,5 +1,3 @@
-use std::{any::TypeId, ops::DerefMut};
-
 use ark_ff::{BigInteger256, PrimeField};
 use ark_r1cs_std::{
     alloc::AllocVar, boolean::Boolean, eq::EqGadget, fields::fp::FpVar, fields::FieldVar,
@@ -38,25 +36,14 @@ pub fn new_hash_map<K, V>() -> HashMap<K, V> {
 
 type ShiftPowers<F> = Vec<FpVar<F>>;
 
-fn get_shift_powers<F: PrimeField>(cs: &ConstraintSystemRef<F>, bits: usize) -> ShiftPowers<F> {
-    let cs = cs.borrow().unwrap();
-    let mut map = cs.cache_map.borrow_mut();
-    let shift_powers = map
-        .entry(TypeId::of::<ShiftPowers<F>>())
-        .or_insert_with(|| {
-            let mut shift_powers = vec![FpVar::one(); 254u32.div_ceil(bits as u32) as usize];
-            let mut power = FpVar::constant(F::from(1u64 << bits));
-            for p in &mut shift_powers[1..] {
-                *p = power.clone();
-                power.square_in_place().unwrap();
-            }
-            Box::new(shift_powers)
-        });
+fn get_shift_powers<F: PrimeField>(bits: usize) -> ShiftPowers<F> {
+    let mut shift_powers = vec![FpVar::one(); 254 / bits];
+    let mut power = FpVar::constant(F::from(1u64 << bits));
+    for p in &mut shift_powers[1..] {
+        *p = power.clone();
+        power.square_in_place().unwrap();
+    }
     shift_powers
-        .deref_mut()
-        .downcast_mut::<ShiftPowers<F>>()
-        .expect("Failed to downcast ShiftPowers")
-        .clone()
 }
 
 // from eli
@@ -65,14 +52,10 @@ pub fn chunk_cee<F: ArkPrimeField>(
     l_vals: &[FpVar<F>],
     r_vals: &[FpVar<F>],
     bits: usize,
-    cs: ConstraintSystemRef<F>,
 ) -> Result<(), SynthesisError> {
-    let shift_powers = get_shift_powers::<F>(&cs, bits);
+    let shift_powers = get_shift_powers::<F>(bits);
     assert_eq!(l_vals.len(), r_vals.len());
-    for (l_chunk, r_chunk) in l_vals
-        .chunks(254u32.div_ceil(bits as u32) as usize)
-        .zip(r_vals.chunks(254u32.div_ceil(bits as u32) as usize))
-    {
+    for (l_chunk, r_chunk) in l_vals.chunks(254 / bits).zip(r_vals.chunks(254 / bits)) {
         let shift_powers = &shift_powers[..l_chunk.len()];
         let l_pack = FpVar::inner_product(l_chunk, shift_powers)?;
         let r_pack = FpVar::inner_product(r_chunk, shift_powers)?;
@@ -86,19 +69,8 @@ pub fn chunk_ee<F: ArkPrimeField>(
     l_vals: &[FpVar<F>],
     r_vals: &[FpVar<F>],
     bits: usize,
-    cs: ConstraintSystemRef<F>,
 ) -> Result<(), SynthesisError> {
-    assert_eq!(l_vals.len(), r_vals.len());
-    let shift_powers = get_shift_powers::<F>(&cs, bits);
-    for (l_chunk, r_chunk) in l_vals
-        .chunks(254u32.div_ceil(bits as u32) as usize)
-        .zip(r_vals.chunks(254u32.div_ceil(bits as u32) as usize))
-    {
-        let shift_powers = &shift_powers[..l_chunk.len()];
-        let l_pack = FpVar::inner_product(l_chunk, shift_powers)?;
-        let r_pack = FpVar::inner_product(r_chunk, shift_powers)?;
-        l_pack.enforce_equal(&r_pack)?;
-    }
+    chunk_cee(&Boolean::TRUE, l_vals, r_vals, bits)?;
     Ok(())
 }
 
@@ -106,10 +78,9 @@ pub fn chunk_cee_zero<F: ArkPrimeField>(
     cond: &Boolean<F>,
     l_vals: &[FpVar<F>],
     bits: usize,
-    cs: ConstraintSystemRef<F>,
 ) -> Result<(), SynthesisError> {
-    let shift_powers = get_shift_powers::<F>(&cs, bits);
-    for l_chunk in l_vals.chunks(254u32.div_ceil(bits as u32) as usize) {
+    let shift_powers = get_shift_powers::<F>(bits);
+    for l_chunk in l_vals.chunks(254 / bits) {
         let shift_powers = &shift_powers[..l_chunk.len()];
         let l_pack = FpVar::inner_product(l_chunk, shift_powers)?;
         l_pack.conditional_enforce_equal(&FpVar::zero(), cond)?;
@@ -120,14 +91,8 @@ pub fn chunk_cee_zero<F: ArkPrimeField>(
 pub fn chunk_ee_zero<F: ArkPrimeField>(
     l_vals: &[FpVar<F>],
     bits: usize,
-    cs: ConstraintSystemRef<F>,
 ) -> Result<(), SynthesisError> {
-    let shift_powers = get_shift_powers::<F>(&cs, bits);
-    for l_chunk in l_vals.chunks(254u32.div_ceil(bits as u32) as usize) {
-        let shift_powers = &shift_powers[..l_chunk.len()];
-        let l_pack = FpVar::inner_product(l_chunk, shift_powers)?;
-        l_pack.enforce_equal(&FpVar::zero())?;
-    }
+    chunk_cee_zero(&Boolean::TRUE, l_vals, bits)?;
     Ok(())
 }
 

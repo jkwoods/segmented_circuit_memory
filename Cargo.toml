@@ -31,7 +31,7 @@ tracing-subscriber = { version = "0.2" }
 tracing = { version = "0.1", default-features = false, features = [ "attributes" ] }
 
 [patch.crates-io]
-ark-serialize = { git = "https://github.com/arkworks-rs/algebra/", features = ["derive","serde", "std"]}
+ark-serialize = { git = "https://github.com/arkworks-rs/algebra/"}
 
 [profile.test]
 opt-level = 3
