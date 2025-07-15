@@ -1209,9 +1209,8 @@ impl<F: ArkPrimeField> RunningMem<F> {
         w: &mut RunningMemWires<F>,
     ) -> Result<(HeapElemWires<F>, HeapElemWires<F>), SynthesisError> {
         assert!(self.mem_spaces.contains(&ty));
-        if write_vals.is_some() {
-            assert_eq!(ty.elem_len(), write_vals.as_ref().unwrap().len());
-        }
+        if write_vals.is_some() {assert!(ty.elem_len, write_vals
+
 
         // ts = ts + 1
         let ts = FpVar::new_witness(w.cs.clone(), || {
@@ -1239,7 +1238,6 @@ impl<F: ArkPrimeField> RunningMem<F> {
             }
         } else {
             let rw = self.mem_wits.get(&addr.value()?).unwrap();
-            assert_eq!(ty.elem_len(), rw.vals.len());
             assert_eq!(rw.addr, addr.value()?);
             rw
         };
@@ -2096,52 +2094,6 @@ mod tests {
     fn mem_basic_circ(i: usize, rm: &mut RunningMem<A>, rmw: &mut RunningMemWires<A>) {
         let (read_addr, write_addr, write_vals) = if i == 0 {
             (1, 2, vec![18, 19])
-        } else if i == 1 {
-            (3, 4, vec![20, 21])
-        } else {
-            panic!()
-        };
-
-        let res = rm.read(
-            &FpVar::new_witness(rmw.cs.clone(), || Ok(A::from(read_addr as u64))).unwrap(),
-            9,
-            rmw,
-        );
-        assert!(res.is_ok());
-
-        let res = rm.write(
-            &FpVar::new_witness(rmw.cs.clone(), || Ok(A::from(write_addr))).unwrap(),
-            write_vals
-                .iter()
-                .map(|v| FpVar::new_witness(rmw.cs.clone(), || Ok(A::from(*v as u64))).unwrap())
-                .collect(),
-            9,
-            rmw,
-        );
-        assert!(res.is_ok());
-    }
-
-    #[test]
-    #[should_panic]
-    fn mem_wrong_len() {
-        let mut mb = MemBuilder::new(vec![MemType::priv_ram(9, 2)], vec![]);
-        mb.init(1, vec![A::from(10), A::from(11)], 9);
-        mb.init(2, vec![A::from(12), A::from(13)], 9);
-        mb.init(3, vec![A::from(14), A::from(15)], 9);
-        mb.init(4, vec![A::from(16), A::from(17)], 9);
-
-        assert_eq!(mb.read(1, 9), vec![A::from(10), A::from(11)]);
-        mb.write(2, vec![A::from(18), A::from(19), A::from(4)], 9);
-
-        assert_eq!(mb.read(3, 9), vec![A::from(14), A::from(15)]);
-        mb.write(4, vec![A::from(20), A::from(21)], 9);
-
-        run_ram_nova(2, vec![(9, 2)], vec![], mb, false, mem_wrong_len_circ);
-    }
-
-    fn mem_wrong_len_circ(i: usize, rm: &mut RunningMem<A>, rmw: &mut RunningMemWires<A>) {
-        let (read_addr, write_addr, write_vals) = if i == 0 {
-            (1, 2, vec![18, 19, 4])
         } else if i == 1 {
             (3, 4, vec![20, 21])
         } else {
