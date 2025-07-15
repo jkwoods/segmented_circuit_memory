@@ -204,7 +204,7 @@ impl<F: ArkPrimeField> HeapElemWires<F> {
 // assumes distinct addresses (even across segments)
 // (though obviously a prover could write to the same address across segments w/out breaking
 // soundness)
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MemBuilder<F: ArkPrimeField> {
     // bookeeping
     mem: HashMap<usize, HeapElem<F>>,
