@@ -1448,7 +1448,6 @@ impl<F: ArkPrimeField> RunningMem<F> {
         // packed
         chunk_ee_zero(&eez_pack, self.time_bit_limit)?;
 
-        println!("IN SCAN");
         chunk_ee(&ee_addr_pack_l, &ee_addr_pack_r, self.addr_bit_limit)?;
 
         Ok(())
