@@ -8,6 +8,7 @@ pub enum MemType {
     PubRAM(usize, usize),
     PrivROM(usize, usize),
     PrivRAM(usize, usize),
+    Stack(usize, usize), //always private
 }
 
 impl MemType {
@@ -27,12 +28,18 @@ impl MemType {
         MemType::PubROM(tag, elem_len)
     }
 
-    pub fn new(private: bool, ram: bool, tag: usize, elem_len: usize) -> Self {
-        match (private, ram) {
-            (true, true) => MemType::PrivRAM(tag, elem_len),
-            (true, false) => MemType::PrivROM(tag, elem_len),
-            (false, true) => MemType::PubRAM(tag, elem_len),
-            (false, false) => MemType::PubROM(tag, elem_len),
+    pub fn stack(tag: usize, elem_len: usize) -> Self {
+        MemType::Stack(tag, elem_len)
+    }
+
+    pub fn new(private: bool, ram: bool, stack: bool, tag: usize, elem_len: usize) -> Self {
+        match (private, ram, stack) {
+            (true, true, false) => MemType::PrivRAM(tag, elem_len),
+            (true, false, false) => MemType::PrivROM(tag, elem_len),
+            (false, true, false) => MemType::PubRAM(tag, elem_len),
+            (false, false, false) => MemType::PubROM(tag, elem_len),
+            (true, false, true) => MemType::Stack(tag, elem_len),
+            _ => panic!("weird combination"),
         }
     }
     pub fn elem_len(&self) -> usize {
@@ -41,6 +48,7 @@ impl MemType {
             MemType::PubRAM(_, l) => *l,
             MemType::PrivROM(_, l) => *l,
             MemType::PrivRAM(_, l) => *l,
+            MemType::Stack(_, l) => *l,
         }
     }
 
@@ -50,6 +58,14 @@ impl MemType {
             MemType::PubRAM(t, _) => *t,
             MemType::PrivROM(t, _) => *t,
             MemType::PrivRAM(t, _) => *t,
+            MemType::Stack(t, _) => *t,
+        }
+    }
+
+    pub fn is_stack(&self) -> bool {
+        match &self {
+            MemType::Stack(_, _) => true,
+            _ => false,
         }
     }
 }
@@ -66,6 +82,7 @@ impl CanonicalSerialize for MemType {
             MemType::PubRAM(tag, len) => (1, *tag, *len),
             MemType::PrivROM(tag, len) => (2, *tag, *len),
             MemType::PrivRAM(tag, len) => (3, *tag, *len),
+            MemType::Stack(tag, len) => (4, *tag, *len),
         };
 
         ty.serialize_with_mode(&mut writer, mode)?;
@@ -81,6 +98,7 @@ impl CanonicalSerialize for MemType {
             MemType::PubRAM(tag, len) => (1, *tag, *len),
             MemType::PrivROM(tag, len) => (2, *tag, *len),
             MemType::PrivRAM(tag, len) => (3, *tag, *len),
+            MemType::Stack(tag, len) => (4, *tag, *len),
         };
 
         ty.serialized_size(mode) + tag.serialized_size(mode) + len.serialized_size(mode)
@@ -103,6 +121,7 @@ impl CanonicalDeserialize for MemType {
             1 => Ok(MemType::PubRAM(tag, len)),
             2 => Ok(MemType::PrivROM(tag, len)),
             3 => Ok(MemType::PrivRAM(tag, len)),
+            4 => Ok(MemType::Stack(tag, len)),
             _ => Err(SerializationError::InvalidData),
         }
     }
@@ -116,6 +135,7 @@ impl Valid for MemType {
             MemType::PubRAM(tag, len) => (1, *tag, *len),
             MemType::PrivROM(tag, len) => (2, *tag, *len),
             MemType::PrivRAM(tag, len) => (3, *tag, *len),
+            MemType::Stack(tag, len) => (4, *tag, *len),
         };
 
         ty.check()?;
@@ -222,6 +242,9 @@ mod tests {
 
         let d = MemType::pub_rom(0, 19);
         serialize_tester::<MemType>(d);
+
+        let e = MemType::stack(2, 55);
+        serialize_tester::<MemType>(e);
     }
 
     #[test]
