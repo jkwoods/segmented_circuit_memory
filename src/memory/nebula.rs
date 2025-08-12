@@ -1787,22 +1787,20 @@ mod tests {
     fn two_stacks() {
         let mut mb = MemBuilder::new(vec![MemType::Stack(0, 2), MemType::Stack(1, 3)]);
 
-        // push, pop from stack 1
         mb.push(1, vec![A::from(1), A::from(2), A::from(40)]);
-        assert_eq!(mb.pop(1), vec![A::from(1), A::from(2), A::from(40)]);
-
-        // push stack 0
         mb.push(0, vec![A::from(5), A::from(6)]);
 
-        // push, pop stack 1
-        mb.push(1, vec![A::from(7), A::from(8), A::from(41)]);
-        assert_eq!(mb.pop(1), vec![A::from(7), A::from(8), A::from(41)]);
+        assert_eq!(mb.pop(1), vec![A::from(1), A::from(2), A::from(40)]);
+        assert_eq!(mb.pop(0), vec![A::from(5), A::from(6)]);
 
-        // push stack 0
+        mb.push(1, vec![A::from(7), A::from(8), A::from(41)]);
         mb.push(0, vec![A::from(9), A::from(10)]);
 
-        // 2 iters, [push pop push] each time // 2,3
-        run_ram_nova(2, vec![(0, 1), (1, 2)], mb, two_stacks_circ);
+        assert_eq!(mb.pop(1), vec![A::from(7), A::from(8), A::from(41)]);
+        assert_eq!(mb.pop(0), vec![A::from(9), A::from(10)]);
+
+        // 2 iters, [push push pop pop] each time // 2,3
+        run_ram_nova(2, vec![(0, 2), (1, 2)], mb, two_stacks_circ);
     }
 
     fn two_stacks_circ(i: usize, rm: &mut RunningMem<A>, rmw: &mut RunningMemWires<A>) {
@@ -1824,9 +1822,6 @@ mod tests {
         );
         assert!(res.is_ok());
 
-        let res = rm.pop(1, rmw);
-        assert!(res.is_ok());
-
         let res = rm.push(
             0,
             push_vals_2
@@ -1835,6 +1830,12 @@ mod tests {
                 .collect(),
             rmw,
         );
+        assert!(res.is_ok());
+
+        let res = rm.pop(1, rmw);
+        assert!(res.is_ok());
+
+        let res = rm.pop(0, rmw);
         assert!(res.is_ok());
     }
 
@@ -1903,12 +1904,14 @@ mod tests {
         mb.push(0, vec![A::from(1), A::from(2)]);
         mb.push(0, vec![A::from(3), A::from(4)]);
         assert_eq!(mb.pop(0), vec![A::from(3), A::from(4)]);
+        assert_eq!(mb.pop(0), vec![A::from(1), A::from(2)]);
 
         mb.push(0, vec![A::from(5), A::from(6)]);
         mb.push(0, vec![A::from(7), A::from(8)]);
         assert_eq!(mb.pop(0), vec![A::from(7), A::from(8)]);
+        assert_eq!(mb.pop(0), vec![A::from(5), A::from(6)]);
 
-        run_ram_nova(2, vec![(9, 0), (0, 3)], mb, stack_basic_circ);
+        run_ram_nova(2, vec![(9, 0), (0, 4)], mb, stack_basic_circ);
     }
 
     fn stack_basic_circ(i: usize, rm: &mut RunningMem<A>, rmw: &mut RunningMemWires<A>) {
@@ -1938,6 +1941,9 @@ mod tests {
                 .collect(),
             rmw,
         );
+        assert!(res.is_ok());
+
+        let res = rm.pop(0, rmw);
         assert!(res.is_ok());
 
         let res = rm.pop(0, rmw);
