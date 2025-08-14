@@ -1,4 +1,3 @@
-use crate::utils::construct_poseidon_parameters_internal;
 use ark_crypto_primitives::sponge::{
     constraints::CryptographicSpongeVar,
     poseidon::{constraints::PoseidonSpongeVar, PoseidonConfig},
@@ -12,8 +11,8 @@ use ark_r1cs_std::{
     GR1CSVar,
 };
 use ark_relations::{
-    lc, ns,
     gr1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError, Variable},
+    lc, ns,
 };
 
 #[derive(Clone, Debug)]
