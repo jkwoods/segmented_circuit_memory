@@ -42,6 +42,19 @@ impl MemType {
             _ => panic!("weird combination"),
         }
     }
+
+    pub fn tag_replace(&mut self, sr_tag: usize) -> usize {
+        let (t, m) = match &self {
+            MemType::PubROM(t, l) => (*t, MemType::PubROM(sr_tag, *l)),
+            MemType::PubRAM(t, l) => (*t, MemType::PubRAM(sr_tag, *l)),
+            MemType::PrivROM(t, l) => (*t, MemType::PrivROM(sr_tag, *l)),
+            MemType::PrivRAM(t, l) => (*t, MemType::PrivRAM(sr_tag, *l)),
+            MemType::Stack(t, l) => (*t, MemType::Stack(sr_tag, *l)),
+        };
+        *self = m;
+        t
+    }
+
     pub fn elem_len(&self) -> usize {
         match &self {
             MemType::PubROM(_, l) => *l,
