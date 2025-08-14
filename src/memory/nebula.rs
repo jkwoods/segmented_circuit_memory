@@ -237,8 +237,9 @@ impl<F: ArkPrimeField> MemBuilder<F> {
         };
 
         self.ws.push(write_elem.clone());
-
-        self.stack_ptrs[tag] += 1;
+        if cond {
+            self.stack_ptrs[tag] += 1;
+        }
     }
 
     pub fn pop(&mut self, tag: usize) -> Vec<F> {
@@ -252,10 +253,10 @@ impl<F: ArkPrimeField> MemBuilder<F> {
 
         if cond {
             self.ts += 1;
+            self.stack_ptrs[tag] -= 1;
             //assert!((self.ts as u64) < (1_u64 << 32));
         }
 
-        self.stack_ptrs[tag] -= 1;
         let addr = self.stack_ptrs[tag];
         let read_elem = if !cond {
             MemElem::padding(addr, ty.elem_len())
