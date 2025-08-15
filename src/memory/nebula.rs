@@ -460,7 +460,6 @@ impl<F: ArkPrimeField> MemBuilder<F> {
         //let mut blinds: Vec<Vec<N1>> = vec![vec![N1::zero(); num_cmts]; num_iters];
         //let mut ram_hints = vec![Vec::new(); num_iters];
 
-        println!("num iters {:#?}", num_iters);
         let zipped: Vec<(Vec<Commitment<E1>>, Vec<N1>, Vec<N1>)> = (0..num_iters)
             .into_par_iter()
             .map(|i| {
@@ -483,7 +482,6 @@ impl<F: ArkPrimeField> MemBuilder<F> {
                 } else {
                     vec![padding.clone(); scan_priv_batch_size]
                 };
-                println!("IS {:#?} {:#?}", i, is_slice);
                 for im in is_slice {
                     let nova_im: Vec<N1> = im
                         .get_vec()
@@ -509,7 +507,6 @@ impl<F: ArkPrimeField> MemBuilder<F> {
                         vec![padding.clone(); scan_batch_size]
                     };
 
-                    println!("FS {:#?} {:#?}", i, fs_slice);
                     for fm in fs_slice.iter() {
                         let nova_fm: Vec<N1> = fm
                             .get_vec()
@@ -521,12 +518,6 @@ impl<F: ArkPrimeField> MemBuilder<F> {
                     }
                 }
 
-                println!(
-                    "RM {:#?} {:#?}",
-                    i,
-                    self.rs[(i * read_batch_size)..(i * read_batch_size + read_batch_size)]
-                        .to_vec()
-                );
                 for rm in &self.rs[(i * read_batch_size)..(i * read_batch_size + read_batch_size)] {
                     let nova_rm: Vec<N1> = rm
                         .get_vec()
@@ -536,12 +527,6 @@ impl<F: ArkPrimeField> MemBuilder<F> {
 
                     rs_hint.extend(nova_rm);
                 }
-
-                println!(
-                    "WM {:#?}",
-                    self.ws[(i * write_batch_size)..(i * write_batch_size + write_batch_size)]
-                        .to_vec()
-                );
 
                 for wm in
                     &self.ws[(i * write_batch_size)..(i * write_batch_size + write_batch_size)]
@@ -1063,8 +1048,8 @@ impl<F: ArkPrimeField> RunningMem<F> {
         }
 
         // memory namespace (below)
-        let sr = if cond.value()? { ty.tag() } else { 0 };
         let addr = &w.stack_ptrs[tag];
+        let sr = if cond.value()? { ty.tag() } else { 0 };
         if cond.value()? {
             self.mem_wits.insert(
                 (addr.value()?, sr),
@@ -1081,8 +1066,18 @@ impl<F: ArkPrimeField> RunningMem<F> {
 
         // WS = WS * tup
         // write mem elem sr == read mem elem sr (important to perserve this wire)
-        let write_mem_elem =
-            MemElemWires::new(ts, addr.clone(), vals, FpVar::constant(F::from(sr as u64)));
+        let write_mem_elem = MemElemWires::new(
+            ts,
+            addr.clone(),
+            vals,
+            FpVar::new_witness(w.cs.clone(), || Ok(F::from(sr as u64)))?,
+        );
+        // memory namespace
+        write_mem_elem.sr.conditional_enforce_equal(
+            &FpVar::<F>::new_constant(w.cs.clone(), F::from(ty.tag() as u64))?,
+            cond,
+        )?;
+
         let next_running_ws = &w.running_ws * write_mem_elem.hash(&w.perm_chal)?;
         w.running_ws = cond.select(&next_running_ws, &w.running_ws)?;
 
@@ -1129,7 +1124,7 @@ impl<F: ArkPrimeField> RunningMem<F> {
             cond.select(&(&w.stack_ptrs[tag] - FpVar::one()), &w.stack_ptrs[tag])?;
         let addr = &w.stack_ptrs[tag];
 
-        let sr = ty.tag();
+        let sr = if cond.value()? { ty.tag() } else { 0 };
         let read_wit = if self.verifier_mode || !cond.value()? {
             &MemElem {
                 time: F::zero(),
@@ -1153,8 +1148,13 @@ impl<F: ArkPrimeField> RunningMem<F> {
                 .iter()
                 .map(|v| FpVar::new_witness(w.cs.clone(), || Ok(v)))
                 .collect::<Result<Vec<FpVar<F>>, _>>()?,
-            FpVar::constant(F::from(sr as u64)),
+            FpVar::new_witness(w.cs.clone(), || Ok(F::from(sr as u64)))?,
         );
+        // memory namespace
+        read_mem_elem.sr.conditional_enforce_equal(
+            &FpVar::<F>::new_constant(w.cs.clone(), F::from(ty.tag() as u64))?,
+            cond,
+        )?;
 
         // t < ts
         let bit = custom_ge(&read_mem_elem.time, &ts, 32, w.cs.clone())?;
@@ -1557,7 +1557,7 @@ impl<F: ArkPrimeField> RunningMem<F> {
             o.ivcify(w.cs.clone())?;
         }
 
-        println!("INIT");
+        /*println!("INIT");
         for mo in &w.is_ops {
             mo.print_vals();
         }
@@ -1572,7 +1572,7 @@ impl<F: ArkPrimeField> RunningMem<F> {
         println!("FINAL");
         for mo in &w.fs_ops {
             mo.print_vals();
-        }
+        }*/
 
         // perm chal
         for c in &w.perm_chal[0..2] {
@@ -1683,7 +1683,6 @@ impl<F: ArkPrimeField> RunningMem<F> {
                 || Ok(sp.value().unwrap()),
             )
             .unwrap();
-            println!("prev sp {:#?} sp {:#?}", prev_sp.value()?, sp.value()?);
 
             sp_in.enforce_equal(prev_sp).unwrap();
             sp_out.enforce_equal(sp).unwrap();
@@ -1774,12 +1773,6 @@ mod tests {
 
         let z0_primary_full = circuit_primary.get_zi();
 
-        println!(
-            "z0 in {:#?}\n out {:#?}",
-            z0_primary_full,
-            circuit_primary.get_zi_plus_1()
-        );
-
         let z0_primary = z0_primary_full[z_memory_len..].to_vec();
 
         // produce public parameters
@@ -1794,7 +1787,6 @@ mod tests {
         .unwrap();
 
         // produce a recursive SNARK
-        println!("RAM HINTS {:#?}", ram_hints[0]);
         let mut recursive_snark = RecursiveSNARK::<E1, E2, FCircuit<<E1 as Engine>::Scalar>>::new(
             &pp,
             &mut circuit_primary,
@@ -1807,7 +1799,6 @@ mod tests {
 
         for i in 0..num_iters {
             println!("==============================================");
-            println!("RAM HINTS {:#?}", ram_hints[i]);
             let res = recursive_snark.prove_step(
                 &pp,
                 &mut circuit_primary,
@@ -1820,16 +1811,10 @@ mod tests {
 
             // verify the recursive SNARK
             let res = recursive_snark.verify(&pp, i + 1, &z0_primary);
-            println!("RES {:#?}", res);
             assert!(res.is_ok());
 
             if i < num_iters - 1 {
                 circuit_primary = make_full_mem_circ(i + 1, &mut rm, do_rw_ops, i == num_iters - 2);
-                println!(
-                    "z0 in {:#?}\n out {:#?}",
-                    circuit_primary.get_zi(),
-                    circuit_primary.get_zi_plus_1()
-                );
             }
         }
 
@@ -1962,6 +1947,58 @@ mod tests {
         assert!(res.is_ok());
 
         let res = rm.pop(0, rmw);
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn stack_uneven_pop() {
+        let mut mb = MemBuilder::new(vec![MemType::priv_ram(9, 2), MemType::Stack(0, 2)]);
+        // stack doesn't need to be init
+        // ram
+        mb.init(1, vec![A::from(16), A::from(17)], 9);
+
+        mb.push(0, vec![A::from(1), A::from(2)]);
+        assert_eq!(mb.cond_pop(true, 0), vec![A::from(1), A::from(2)]);
+        assert_eq!(mb.cond_pop(false, 0), vec![A::from(0), A::from(0)]);
+
+        mb.push(0, vec![A::from(7), A::from(8)]);
+        assert_eq!(mb.cond_pop(false, 0), vec![A::from(0), A::from(0)]);
+        assert_eq!(mb.cond_pop(true, 0), vec![A::from(7), A::from(8)]);
+
+        run_ram_nova(2, vec![(9, 0)], vec![(0, 1, 2)], mb, stack_uneven_pop_circ);
+    }
+
+    fn stack_uneven_pop_circ(i: usize, rm: &mut RunningMem<A>, rmw: &mut RunningMemWires<A>) {
+        let (push_vals, pop_cond_1, pop_cond_2) = if i == 0 {
+            (vec![1, 2], true, false)
+        } else if i == 1 {
+            (vec![7, 8], false, true)
+        } else {
+            panic!()
+        };
+
+        let res = rm.push(
+            0,
+            push_vals
+                .iter()
+                .map(|v| FpVar::new_witness(rmw.cs.clone(), || Ok(A::from(*v as u64))).unwrap())
+                .collect(),
+            rmw,
+        );
+        assert!(res.is_ok());
+
+        let res = rm.conditional_pop(
+            &Boolean::new_witness(rmw.cs.clone(), || Ok(pop_cond_1)).unwrap(),
+            0,
+            rmw,
+        );
+        assert!(res.is_ok());
+
+        let res = rm.conditional_pop(
+            &Boolean::new_witness(rmw.cs.clone(), || Ok(pop_cond_2)).unwrap(),
+            0,
+            rmw,
+        );
         assert!(res.is_ok());
     }
 

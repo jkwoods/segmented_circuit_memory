@@ -170,6 +170,8 @@ impl<N: NovaPrimeField<Repr = Repr<32>>> FCircuit<N> {
             Either::Right(nova_matrices)
         } else {
             let ark_matrices = &ark_cs.to_matrices().unwrap()[R1CS_PREDICATE_LABEL];
+            println!("MATRICES {:#?}", ark_matrices);
+
             let lcs = (0..ark_matrices[0].len())
                 .into_par_iter()
                 .map(|i| {
