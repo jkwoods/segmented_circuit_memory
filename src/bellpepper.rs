@@ -135,9 +135,10 @@ impl<N: NovaPrimeField<Repr = Repr<32>>> FCircuit<N> {
         nova_matrices: Option<Arc<Vec<Constraint<N>>>>,
     ) -> Self {
         ark_cs_ref.finalize();
-        /*if nova_matrices.is_none() {
+        if nova_matrices.is_none() {
             assert!(ark_cs_ref.is_satisfied().unwrap());
-        }*/
+            println!("SAT");
+        }
 
         let ark_cs = ark_cs_ref.borrow().unwrap();
 
@@ -204,7 +205,7 @@ impl<N: NovaPrimeField<Repr = Repr<32>>> FCircuit<N> {
         &self.input_assignments
     }
 
-    pub fn get_z_i_plus_1(&self) -> &Vec<N> {
+    pub fn get_zi_plus_1(&self) -> &Vec<N> {
         &self.output_assignments
     }
 }
