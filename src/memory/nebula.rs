@@ -917,6 +917,11 @@ impl<F: ArkPrimeField> RunningMem<F> {
         // is * ws == rs * fs
         assert_eq!(zn[3], N1::from(1));
 
+        // stacks
+        for z in &zn[11..] {
+            assert_eq!(*z, N1::from(0));
+        }
+
         // incr cmt = acc cmt
         for (cmt, acmt) in self.ic_cmt.inner().iter().zip(acc_cmt.iter()) {
             assert_eq!(cmt, acmt);
@@ -1082,7 +1087,6 @@ impl<F: ArkPrimeField> RunningMem<F> {
         w.running_ws = cond.select(&next_running_ws, &w.running_ws)?;
 
         // sp ++
-        // TODO STACK TAG LINE UP
         w.stack_ptrs[tag] =
             cond.select(&(&w.stack_ptrs[tag] + FpVar::one()), &w.stack_ptrs[tag])?;
 
@@ -1121,7 +1125,6 @@ impl<F: ArkPrimeField> RunningMem<F> {
         }
 
         // sp --
-        // TODO STACK TAG LINE UP
         w.stack_ptrs[tag] =
             cond.select(&(&w.stack_ptrs[tag] - FpVar::one()), &w.stack_ptrs[tag])?;
         let addr = &w.stack_ptrs[tag];
@@ -1528,7 +1531,7 @@ impl<F: ArkPrimeField> RunningMem<F> {
             .is_eq(&(&w.running_fs * &w.running_rs))?;
         union.conditional_enforce_equal(&Boolean::TRUE, &last_check)?;
 
-        w.running_is = last_check.select(&FpVar::constant(F::zero()), &w.running_is)?;
+        w.running_is = last_check.select(&FpVar::zero(), &w.running_is)?;
         w.running_rs = last_check.select(&FpVar::zero(), &w.running_rs)?;
         w.running_ws = last_check.select(&FpVar::zero(), &w.running_ws)?;
         w.running_fs = last_check.select(&FpVar::zero(), &w.running_fs)?;
@@ -1767,7 +1770,7 @@ mod tests {
         let verifier_rm = rm.get_dummy();
 
         // nova
-        let mut circuit_primary = make_full_mem_circ(0, &mut rm, do_rw_ops, false);
+        let mut circuit_primary = make_full_mem_circ(0, &mut rm, do_rw_ops, num_iters == 1);
 
         let z0_primary_full = circuit_primary.get_zi();
 
@@ -1982,15 +1985,15 @@ mod tests {
 
     fn stack_uneven_circ(i: usize, rm: &mut RunningMem<A>, rmw: &mut RunningMemWires<A>) {
         let (push_vals_1, push_vals_2, push_cond_1, push_cond_2) = if i == 0 {
-            (vec![1, 2], vec![0, 0], Boolean::TRUE, Boolean::FALSE)
+            (vec![1, 2], vec![0, 0], true, false)
         } else if i == 1 {
-            (vec![0, 0], vec![7, 8], Boolean::FALSE, Boolean::TRUE)
+            (vec![0, 0], vec![7, 8], false, true)
         } else {
             panic!()
         };
 
         let res = rm.conditional_push(
-            &push_cond_1,
+            &Boolean::new_witness(rmw.cs.clone(), || Ok(push_cond_1)).unwrap(),
             0,
             push_vals_1
                 .iter()
@@ -2001,7 +2004,7 @@ mod tests {
         assert!(res.is_ok());
 
         let res = rm.conditional_push(
-            &push_cond_2,
+            &Boolean::new_witness(rmw.cs.clone(), || Ok(push_cond_2)).unwrap(),
             0,
             push_vals_2
                 .iter()
