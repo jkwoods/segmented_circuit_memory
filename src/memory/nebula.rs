@@ -197,6 +197,8 @@ impl<F: ArkPrimeField> MemBuilder<F> {
             mem_spaces.insert(t, m);
         }
 
+        println!("MEM SPACES {:#?}", mem_spaces);
+
         Self {
             mem: new_hash_map(),
             stack_ptrs: vec![0; num_stacks],
@@ -228,7 +230,7 @@ impl<F: ArkPrimeField> MemBuilder<F> {
             //assert!((self.ts as u64) < (1_u64 << 32));
         }
 
-        let addr = self.stack_ptrs[tag];
+        let addr = self.stack_ptrs[sr];
         let write_elem = if !cond {
             MemElem::padding(addr, ty.elem_len())
         } else {
@@ -246,7 +248,7 @@ impl<F: ArkPrimeField> MemBuilder<F> {
 
         self.ws.push(write_elem.clone());
         if cond {
-            self.stack_ptrs[tag] += 1;
+            self.stack_ptrs[sr] += 1;
         }
     }
 
@@ -261,11 +263,11 @@ impl<F: ArkPrimeField> MemBuilder<F> {
 
         if cond {
             self.ts += 1;
-            self.stack_ptrs[tag] -= 1;
+            self.stack_ptrs[sr] -= 1;
             //assert!((self.ts as u64) < (1_u64 << 32));
         }
 
-        let addr = self.stack_ptrs[tag];
+        let addr = self.stack_ptrs[sr];
         let read_elem = if !cond {
             MemElem::padding(addr, ty.elem_len())
         } else if self.mem.contains_key(&(addr, sr)) {
@@ -1060,7 +1062,7 @@ impl<F: ArkPrimeField> RunningMem<F> {
         }
 
         // memory namespace (below)
-        let addr = &w.stack_ptrs[tag];
+        let addr = &w.stack_ptrs[ty.tag()];
         let sr = if cond.value()? { ty.tag() } else { 0 };
         if cond.value()? {
             self.mem_wits.insert(
@@ -1094,8 +1096,11 @@ impl<F: ArkPrimeField> RunningMem<F> {
         w.running_ws = cond.select(&next_running_ws, &w.running_ws)?;
 
         // sp ++
-        w.stack_ptrs[tag] =
-            cond.select(&(&w.stack_ptrs[tag] + FpVar::one()), &w.stack_ptrs[tag])?;
+        let stk_ptr_tag = ty.tag();
+        w.stack_ptrs[stk_ptr_tag] = cond.select(
+            &(&w.stack_ptrs[stk_ptr_tag] + FpVar::one()),
+            &w.stack_ptrs[stk_ptr_tag],
+        )?;
 
         w.ws_ops.push(write_mem_elem);
 
@@ -1132,9 +1137,12 @@ impl<F: ArkPrimeField> RunningMem<F> {
         }
 
         // sp --
-        w.stack_ptrs[tag] =
-            cond.select(&(&w.stack_ptrs[tag] - FpVar::one()), &w.stack_ptrs[tag])?;
-        let addr = &w.stack_ptrs[tag];
+        let stk_ptr_tag = ty.tag();
+        w.stack_ptrs[stk_ptr_tag] = cond.select(
+            &(&w.stack_ptrs[stk_ptr_tag] - FpVar::one()),
+            &w.stack_ptrs[stk_ptr_tag],
+        )?;
+        let addr = &w.stack_ptrs[stk_ptr_tag];
 
         let sr = if cond.value()? { ty.tag() } else { 0 };
         let read_wit = if self.verifier_mode || !cond.value()? {

@@ -4,11 +4,11 @@ use ark_serialize::*;
 
 #[derive(Clone, Eq, Debug, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum MemType {
+    Stack(usize, usize), //always private
     PubROM(usize, usize),
     PubRAM(usize, usize),
     PrivROM(usize, usize),
     PrivRAM(usize, usize),
-    Stack(usize, usize), //always private
 }
 
 impl MemType {
