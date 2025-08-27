@@ -621,6 +621,10 @@ impl<F: ArkPrimeField> MemBuilder<F> {
         &self.mem
     }
 
+    pub fn get_tag_map(&self, tag: usize) -> usize {
+        self.mem_spaces.get(&tag).unwrap().tag()
+    }
+
     // consumes the mem builder object
     pub fn new_running_mem<P: AsRef<Path>>(
         mut self,
@@ -895,6 +899,10 @@ impl<F: ArkPrimeField> RunningMem<F> {
             running_fs: F::ONE,
             stack_ptrs: vec![F::ZERO; self.stack_ptrs.len()],
         }
+    }
+
+    pub fn get_tag_map(&self, tag: usize) -> usize {
+        self.mem_spaces.get(&tag).unwrap().tag()
     }
 
     pub fn verifier_checks(&self, zn: &[N1], acc_cmt: &[N2]) {
