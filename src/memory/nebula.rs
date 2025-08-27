@@ -48,6 +48,10 @@ impl<F: ArkPrimeField> MemElem<F> {
         &self.addr
     }
 
+    pub fn sr(&self) -> &F {
+        &self.sr
+    }
+
     fn padding(addr: usize, elem_len: usize) -> Self {
         MemElem {
             time: F::zero(),
