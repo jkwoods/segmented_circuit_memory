@@ -148,7 +148,7 @@ impl<F: ArkPrimeField> MemElemWires<F> {
 pub struct MemBuilder<F: ArkPrimeField> {
     // bookeeping
     mem: HashMap<(usize, usize), MemElem<F>>,
-    stack_ptrs: Vec<usize>,
+    pub stack_ptrs: Vec<usize>,
     // nebula traces
     pub_is: Vec<MemElem<F>>,
     priv_is: Vec<MemElem<F>>,
@@ -196,8 +196,6 @@ impl<F: ArkPrimeField> MemBuilder<F> {
             let t = m.tag_replace(i);
             mem_spaces.insert(t, m);
         }
-
-        println!("MEM SPACES {:#?}", mem_spaces);
 
         Self {
             mem: new_hash_map(),
