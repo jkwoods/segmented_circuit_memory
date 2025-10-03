@@ -1,4 +1,5 @@
 # Memory in Arkworks
+**Alert!! Please see [github.com/eniac/segmented-memory](github.com/eniac/segmented-memory) for an up to date, maintainted version of this Repo!**
 
 This repo contains R1CS circuits, written in [arkworks](https://github.com/arkworks-rs) for several types of memory:
 1. A version of [Nebula's memory construction](https://eprint.iacr.org/2024/1605.pdf) , that needs our [modified commitmit-carrying IVC version of Nova](https://github.com/jkwoods/Nova/tree/main)
